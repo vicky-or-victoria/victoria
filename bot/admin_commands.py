@@ -658,28 +658,27 @@ class AdminPanelView(discord.ui.View):
 
     @discord.ui.button(label="⏭️ Force Turn Resolution", style=discord.ButtonStyle.danger)
     async def force_turn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from utils.turn_engine import resolve_turn
-        from utils.scheduler import post_turn_summary, refresh_all_embeds
+        from utils.scheduler import _resolve_guild_turn
         await interaction.response.defer(ephemeral=True)
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            result = await resolve_turn(self.guild_id, bot=self.bot)
-            if result:
-                await post_turn_summary(self.bot, self.guild_id, result, conn)
-            await refresh_all_embeds(self.bot, self.guild_id, conn)
-        await interaction.followup.send("✅ Turn forced and resolved.", ephemeral=True)
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await _resolve_guild_turn(self.bot, self.guild_id, conn)
+            await interaction.followup.send("✅ Turn forced and resolved.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Turn resolution failed: `{e}`", ephemeral=True)
 
     @discord.ui.button(label="🗳️ Force Election", style=discord.ButtonStyle.danger)
     async def force_election(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from utils.elections import resolve_election
-        from utils.scheduler import post_election_result, refresh_all_embeds
+        from utils.scheduler import _resolve_guild_election
         await interaction.response.defer(ephemeral=True)
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            result = await resolve_election(self.guild_id, conn)
-            await post_election_result(self.bot, self.guild_id, result, conn)
-            await refresh_all_embeds(self.bot, self.guild_id, conn)
-        await interaction.followup.send("✅ Election forced and resolved.", ephemeral=True)
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await _resolve_guild_election(self.bot, self.guild_id, conn)
+            await interaction.followup.send("✅ Election forced and resolved.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Election resolution failed: `{e}`", ephemeral=True)
 
     @discord.ui.button(label="🔄 Refresh All Embeds", style=discord.ButtonStyle.secondary)
     async def refresh_embeds(self, interaction: discord.Interaction, button: discord.ui.Button):
