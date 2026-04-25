@@ -461,6 +461,35 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS loyalty             INT NOT NULL DE
 ALTER TABLE players ADD COLUMN IF NOT EXISTS legacy_points       INT NOT NULL DEFAULT 0;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS is_silenced         BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS silenced_until_turn INT;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS role_type           TEXT NOT NULL DEFAULT 'people';
+ALTER TABLE players ADD COLUMN IF NOT EXISTS is_active           BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- cabinet_assignments new columns
+ALTER TABLE cabinet_assignments ADD COLUMN IF NOT EXISTS turns_held INT NOT NULL DEFAULT 0;
+
+-- turn_history new columns
+ALTER TABLE turn_history ADD COLUMN IF NOT EXISTS vic_date   TEXT NOT NULL DEFAULT '';
+ALTER TABLE turn_history ADD COLUMN IF NOT EXISTS raw_events JSONB DEFAULT '[]';
+
+-- gazette_entries new columns
+ALTER TABLE gazette_entries ADD COLUMN IF NOT EXISTS vic_date   TEXT NOT NULL DEFAULT '';
+ALTER TABLE gazette_entries ADD COLUMN IF NOT EXISTS message_id BIGINT;
+
+-- freeform_actions new columns
+ALTER TABLE freeform_actions ADD COLUMN IF NOT EXISTS vic_date    TEXT NOT NULL DEFAULT '';
+ALTER TABLE freeform_actions ADD COLUMN IF NOT EXISTS gazette_tier TEXT NOT NULL DEFAULT 'B';
+ALTER TABLE freeform_actions ADD COLUMN IF NOT EXISTS is_public   BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- dossiers new columns
+ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS vic_date TEXT NOT NULL DEFAULT '';
+
+-- empress new columns
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS ambition_type    TEXT NOT NULL DEFAULT 'expansion';
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS last_decree      TEXT;
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS decree_at        TIMESTAMPTZ;
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS last_intervention TEXT;
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS intervention_at  TIMESTAMPTZ;
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS crown_rule_since TIMESTAMPTZ;
 """
 
 
