@@ -12,13 +12,31 @@ class MainMenuView(View):
         super().__init__(timeout=None)
         self.guild_id = guild_id
 
+    async def _handle(self, interaction: discord.Interaction, coro):
+        """Defer, run coro, and catch any errors so Discord always gets a response."""
+        try:
+            await coro
+        except Exception as e:
+            print(f"[MainMenuView] Error in button handler: {e}")
+            try:
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "❌ *Something went wrong. Please try again.*", ephemeral=True
+                    )
+                else:
+                    await interaction.followup.send(
+                        "❌ *Something went wrong. Please try again.*", ephemeral=True
+                    )
+            except Exception:
+                pass
+
     @discord.ui.button(label="👤 My Character", style=discord.ButtonStyle.secondary,
                        custom_id="menu_my_character", row=0)
     async def my_character(self, interaction: discord.Interaction, button: Button):
         from views.character_panel import CharacterView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await CharacterView.send(interaction, conn)
+            await self._handle(interaction, CharacterView.send(interaction, conn))
 
     @discord.ui.button(label="⚖️ Formal Actions", style=discord.ButtonStyle.primary,
                        custom_id="menu_take_action", row=0)
@@ -26,7 +44,7 @@ class MainMenuView(View):
         from views.action_panel import ActionMenuView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await ActionMenuView.send(interaction, conn)
+            await self._handle(interaction, ActionMenuView.send(interaction, conn))
 
     @discord.ui.button(label="🗣️ Political Discourse", style=discord.ButtonStyle.primary,
                        custom_id="menu_freeform", row=0)
@@ -34,7 +52,7 @@ class MainMenuView(View):
         from views.freeform_panel import FreeformMenuView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await FreeformMenuView.send(interaction, conn)
+            await self._handle(interaction, FreeformMenuView.send(interaction, conn))
 
     @discord.ui.button(label="🗺️ The Empire", style=discord.ButtonStyle.secondary,
                        custom_id="menu_empire", row=1)
@@ -42,7 +60,7 @@ class MainMenuView(View):
         from views.empire_panel import EmpireView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await EmpireView.send(interaction, conn)
+            await self._handle(interaction, EmpireView.send(interaction, conn))
 
     @discord.ui.button(label="🏛️ The Cabinet", style=discord.ButtonStyle.secondary,
                        custom_id="menu_cabinet", row=1)
@@ -50,7 +68,7 @@ class MainMenuView(View):
         from views.cabinet_panel import CabinetView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await CabinetView.send(interaction, conn)
+            await self._handle(interaction, CabinetView.send(interaction, conn))
 
     @discord.ui.button(label="📰 The Gazette", style=discord.ButtonStyle.secondary,
                        custom_id="menu_events", row=1)
@@ -58,16 +76,18 @@ class MainMenuView(View):
         from views.events_panel import EventsView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await EventsView.send(interaction, conn)
+            await self._handle(interaction, EventsView.send(interaction, conn))
 
     @discord.ui.button(label="👑 Her Majesty", style=discord.ButtonStyle.secondary,
                        custom_id="menu_empress", row=2)
     async def empress_panel(self, interaction: discord.Interaction, button: Button):
         from utils.empress import build_empress_embed
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            embed = await build_empress_embed(interaction.guild_id, conn)
+        async def _send():
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                embed = await build_empress_embed(interaction.guild_id, conn)
             await interaction.response.send_message(embed=embed, ephemeral=True)
+        await self._handle(interaction, _send())
 
     @discord.ui.button(label="📜 National Acts", style=discord.ButtonStyle.secondary,
                        custom_id="menu_acts", row=2)
@@ -75,14 +95,14 @@ class MainMenuView(View):
         from utils.national_acts import NationalActsView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await NationalActsView.send(interaction, conn)
+            await self._handle(interaction, NationalActsView.send(interaction, conn))
 
     @discord.ui.button(label="🎭 My Dossier", style=discord.ButtonStyle.secondary,
                        custom_id="menu_dossier", row=2)
     async def dossier(self, interaction: discord.Interaction, button: Button):
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await _send_dossier(interaction, conn)
+            await self._handle(interaction, _send_dossier(interaction, conn))
 
     @discord.ui.button(label="⚔️ War Room", style=discord.ButtonStyle.danger,
                        custom_id="menu_war", row=3)
@@ -90,14 +110,14 @@ class MainMenuView(View):
         from views.empire_panel import WarView
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await WarView.send(interaction, conn)
+            await self._handle(interaction, WarView.send(interaction, conn))
 
     @discord.ui.button(label="🔮 Secret Societies", style=discord.ButtonStyle.danger,
                        custom_id="menu_societies", row=3)
     async def societies(self, interaction: discord.Interaction, button: Button):
         pool = await get_pool()
         async with pool.acquire() as conn:
-            await _send_societies(interaction, conn)
+            await self._handle(interaction, _send_societies(interaction, conn))
 
 
 async def _send_dossier(interaction: discord.Interaction, conn):
@@ -265,6 +285,9 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
             )
             return
 
+        # Defer immediately — DB writes below can exceed the 3-second modal response window
+        await interaction.response.defer(ephemeral=True)
+
         pool = await get_pool()
         async with pool.acquire() as conn:
             society = await conn.fetchrow("""
@@ -272,7 +295,7 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
             """, self.guild_id, society_key)
 
             if not society:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "❌ *That fellowship does not appear to operate in this jurisdiction.*",
                     ephemeral=True
                 )
@@ -310,7 +333,7 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
             color=0x2a1a4a,
         )
         embed.set_footer(text="Speak of this to no one · V.I.C.T.O.R.I.A.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 # ─────────────────────────────────────────
