@@ -426,6 +426,12 @@ CREATE INDEX IF NOT EXISTS idx_dossiers_player ON dossiers(guild_id, player_id);
 CREATE INDEX IF NOT EXISTS idx_freeform_guild ON freeform_actions(guild_id, turn_number);
 CREATE INDEX IF NOT EXISTS idx_alliances_guild ON alliances(guild_id);
 CREATE INDEX IF NOT EXISTS idx_society_members ON society_members(guild_id, society_key);
+
+-- ─────────────────────────────────────────
+-- SCHEMA MIGRATIONS (add new columns to existing tables)
+-- ─────────────────────────────────────────
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS displeasure INT NOT NULL DEFAULT 0;
+ALTER TABLE empress ADD COLUMN IF NOT EXISTS stage       INT NOT NULL DEFAULT 0;
 """
 
 
