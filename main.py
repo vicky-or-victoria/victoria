@@ -35,12 +35,8 @@ class Victoria(commands.Bot):
         await self.load_extension("bot.admin_commands")
         print("✅ Admin commands loaded.")
 
-        # Register persistent views
-        from views.menu import MainMenuView
-        self.add_view(MainMenuView(0))
-
-        # Restore live ActVotingViews
-        asyncio.create_task(self._restore_act_views())
+        # Restore persistent views (menu + act votes) once the bot is ready
+        asyncio.create_task(self._restore_persistent_views())
 
         # Start scheduler
         asyncio.create_task(run_scheduler(self))
@@ -49,12 +45,23 @@ class Victoria(commands.Bot):
         await self.tree.sync()
         print("✅ Slash commands synced.")
 
-    async def _restore_act_views(self):
+    async def _restore_persistent_views(self):
         await self.wait_until_ready()
-        try:
-            from utils.national_acts import ActVotingView, NATIONAL_ACTS
-            pool = await get_pool()
-            async with pool.acquire() as conn:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            # Restore one MainMenuView per guild with the correct guild_id
+            try:
+                from views.menu import MainMenuView
+                guilds = await conn.fetch("SELECT guild_id FROM guild_config")
+                for row in guilds:
+                    self.add_view(MainMenuView(row["guild_id"]))
+                print(f"✅ Restored {len(guilds)} MainMenuView(s).")
+            except Exception as e:
+                print(f"MainMenuView restore error: {e}")
+
+            # Restore live ActVotingViews
+            try:
+                from utils.national_acts import ActVotingView, NATIONAL_ACTS
                 open_acts = await conn.fetch("""
                     SELECT id, guild_id, act_key FROM national_acts WHERE status = 'proposed'
                 """)
@@ -62,9 +69,9 @@ class Victoria(commands.Bot):
                     act_def = NATIONAL_ACTS.get(act["act_key"], {})
                     requires_cabinet = act_def.get("requires_cabinet", False)
                     self.add_view(ActVotingView(act["guild_id"], act["id"], requires_cabinet))
-            print(f"✅ Restored {len(open_acts)} live ActVotingView(s).")
-        except Exception as e:
-            print(f"ActVotingView restore error: {e}")
+                print(f"✅ Restored {len(open_acts)} live ActVotingView(s).")
+            except Exception as e:
+                print(f"ActVotingView restore error: {e}")
 
     async def on_ready(self):
         print(f"🎩 V.I.C.T.O.R.I.A. is online as {self.user} ({self.user.id})")
@@ -76,14 +83,6 @@ class Victoria(commands.Bot):
         )
         await get_pool()
         print("✅ Database pool ready.")
-
-    async def on_interaction(self, interaction: discord.Interaction):
-        from views.menu import MainMenuView
-        if interaction.type == discord.InteractionType.component:
-            custom_id = interaction.data.get("custom_id", "")
-            if custom_id.startswith("menu_"):
-                self.add_view(MainMenuView(interaction.guild_id))
-        await super().on_interaction(interaction)
 
     async def close(self):
         await close_pool()
