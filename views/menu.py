@@ -252,7 +252,10 @@ class SocietyJoinView(View):
 
     @discord.ui.button(label="I have received an invitation", style=discord.ButtonStyle.secondary)
     async def join(self, interaction: discord.Interaction, button: Button):
-        await interaction.response.send_modal(SocietyJoinModal(self.guild_id, self.player_id))
+        # Pass the original message so the modal can edit it instead of sending a new message
+        await interaction.response.send_modal(
+            SocietyJoinModal(self.guild_id, self.player_id, interaction.message)
+        )
 
 
 class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
@@ -263,10 +266,26 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
         required=True,
     )
 
-    def __init__(self, guild_id: int, player_id: int):
+    def __init__(self, guild_id: int, player_id: int, original_message=None):
         super().__init__()
         self.guild_id = guild_id
         self.player_id = player_id
+        self.original_message = original_message
+
+    async def _edit_original(self, interaction: discord.Interaction, embed: discord.Embed):
+        """Replace the original ephemeral message embed, removing the join button."""
+        if self.original_message:
+            try:
+                await self.original_message.edit(embed=embed, view=None)
+                await interaction.response.defer()
+                return
+            except Exception:
+                pass
+        # Fallback: send as new followup if edit fails
+        if not interaction.response.is_done():
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     async def on_submit(self, interaction: discord.Interaction):
         """Map secret codes to societies."""
@@ -279,13 +298,16 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
         society_key = CODES.get(entered)
 
         if not society_key:
-            await interaction.response.send_message(
-                "❌ *That code is not recognised. Perhaps your contact misspoke.*",
-                ephemeral=True
+            fail_embed = discord.Embed(
+                title="🔮 Code Unrecognised",
+                description="*That code is not recognised. Perhaps your contact misspoke.*",
+                color=0x2a1a4a,
             )
+            fail_embed.set_footer(text="Speak of this to no one · V.I.C.T.O.R.I.A.")
+            await self._edit_original(interaction, fail_embed)
             return
 
-        # Defer immediately — DB writes below can exceed the 3-second modal response window
+        # Defer — DB writes below can exceed the 3-second modal response window
         await interaction.response.defer(ephemeral=True)
 
         pool = await get_pool()
@@ -295,10 +317,19 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
             """, self.guild_id, society_key)
 
             if not society:
-                await interaction.followup.send(
-                    "❌ *That fellowship does not appear to operate in this jurisdiction.*",
-                    ephemeral=True
+                fail_embed = discord.Embed(
+                    title="🔮 Fellowship Not Found",
+                    description="*That fellowship does not appear to operate in this jurisdiction.*",
+                    color=0x2a1a4a,
                 )
+                fail_embed.set_footer(text="Speak of this to no one · V.I.C.T.O.R.I.A.")
+                if self.original_message:
+                    try:
+                        await self.original_message.edit(embed=fail_embed, view=None)
+                        return
+                    except Exception:
+                        pass
+                await interaction.followup.send(embed=fail_embed, ephemeral=True)
                 return
 
             await conn.execute("""
@@ -320,7 +351,7 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
                 END WHERE id = $1
             """, self.player_id)
 
-        embed = discord.Embed(
+        success_embed = discord.Embed(
             title=f"🔮 Welcome to {society['name']}",
             description=(
                 f"*The door closes behind you. The candles are lit. Your oath is taken.*\n\n"
@@ -332,8 +363,14 @@ class SocietyJoinModal(discord.ui.Modal, title="Society Invitation Code"):
             ),
             color=0x2a1a4a,
         )
-        embed.set_footer(text="Speak of this to no one · V.I.C.T.O.R.I.A.")
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        success_embed.set_footer(text="Speak of this to no one · V.I.C.T.O.R.I.A.")
+        if self.original_message:
+            try:
+                await self.original_message.edit(embed=success_embed, view=None)
+                return
+            except Exception:
+                pass
+        await interaction.followup.send(embed=success_embed, ephemeral=True)
 
 
 # ─────────────────────────────────────────
