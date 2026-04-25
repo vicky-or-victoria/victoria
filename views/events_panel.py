@@ -14,15 +14,29 @@ class EventsView(View):
 
     @discord.ui.button(label="📰 Latest Edition", style=discord.ButtonStyle.primary)
     async def latest(self, interaction: discord.Interaction, button: discord.ui.Button):
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            await _send_latest(interaction, self.guild_id, conn)
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await _send_latest(interaction, self.guild_id, conn)
+        except Exception as e:
+            print(f"[EventsView.latest] {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ *Something went wrong.*", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ *Something went wrong.*", ephemeral=True)
 
     @discord.ui.button(label="📚 Turn History", style=discord.ButtonStyle.secondary)
     async def history(self, interaction: discord.Interaction, button: discord.ui.Button):
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            await _send_history(interaction, self.guild_id, conn)
+        try:
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await _send_history(interaction, self.guild_id, conn)
+        except Exception as e:
+            print(f"[EventsView.history] {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ *Something went wrong.*", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ *Something went wrong.*", ephemeral=True)
 
     @staticmethod
     async def send(interaction: discord.Interaction, conn):
@@ -75,14 +89,17 @@ async def _send_latest(interaction: discord.Interaction, guild_id: int, conn):
 
     embed = discord.Embed(
         title="📰 The Imperial Gazette — Latest Dispatches",
-        description=f"*The five most recent entries from the Gazette archive.*",
+        description="*The five most recent entries from the Gazette archive.*",
         color=0x1a2744,
     )
     for e in entries:
-        tier_label = {"A": "🔴 MAJOR", "B": "🟡 NOTABLE", "C": "⚪ MINOR"}.get(e["tier"], "")
+        tier_label = {"A": "🔴 MAJOR", "B": "🟡 NOTABLE", "C": "⚪ MINOR"}.get(e["tier"], "📌")
+        date_str = e["vic_date"] or "Unknown date"
+        body = e["body"] or "*No content.*"
+        value = f"*{date_str}*\n{body[:200]}…" if len(body) > 200 else f"*{date_str}*\n{body}"
         embed.add_field(
-            name=f"{tier_label} — {e['headline'][:100]}",
-            value=f"*{e['vic_date']}*\n{e['body'][:200]}…" if len(e['body']) > 200 else f"*{e['vic_date']}*\n{e['body']}",
+            name=f"{tier_label} — {e['headline'][:100]}" or "Untitled",
+            value=value,
             inline=False,
         )
     embed.set_footer(text="Printed at the Imperial Press, Westminster · V.I.C.T.O.R.I.A.")
@@ -110,9 +127,11 @@ async def _send_history(interaction: discord.Interaction, guild_id: int, conn):
         color=0x4B3010,
     )
     for h in history:
+        date_str = h["vic_date"] or "Unknown date"
+        narrative = h["narrative"] or "*No record.*"
         embed.add_field(
-            name=f"Turn {ordinal(h['turn_number'])} — {h['vic_date']}",
-            value=h["narrative"][:300],
+            name=f"Turn {ordinal(h['turn_number'])} — {date_str}",
+            value=narrative[:300],
             inline=False,
         )
     embed.set_footer(text="V.I.C.T.O.R.I.A. · Omnia pro Imperio")
