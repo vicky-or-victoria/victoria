@@ -432,6 +432,35 @@ CREATE INDEX IF NOT EXISTS idx_society_members ON society_members(guild_id, soci
 -- ─────────────────────────────────────────
 ALTER TABLE empress ADD COLUMN IF NOT EXISTS displeasure INT NOT NULL DEFAULT 0;
 ALTER TABLE empress ADD COLUMN IF NOT EXISTS stage       INT NOT NULL DEFAULT 0;
+
+-- guild_config new columns
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS turn_hours              INT NOT NULL DEFAULT 12;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS election_days           INT NOT NULL DEFAULT 5;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS confidence_threshold    INT NOT NULL DEFAULT 30;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS ap_cabinet_senior       INT NOT NULL DEFAULT 5;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS ap_cabinet_junior       INT NOT NULL DEFAULT 4;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS ap_opposition           INT NOT NULL DEFAULT 3;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS ap_parliament           INT NOT NULL DEFAULT 2;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS ultimate_goal           TEXT NOT NULL DEFAULT 'Achieve Imperial dominance over the known world.';
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS channel_parliament      BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS channel_leaderboard     BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS channel_societies       BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS role_prime_minister     BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS role_parliament         BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS vic_year                INT NOT NULL DEFAULT 1878;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS vic_month               INT NOT NULL DEFAULT 1;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS vic_day                 INT NOT NULL DEFAULT 1;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS header_image_url        TEXT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS empress_message_id      BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS map_message_id          BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS cabinet_message_id      BIGINT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS leaderboard_message_id  BIGINT;
+
+-- players new columns
+ALTER TABLE players ADD COLUMN IF NOT EXISTS loyalty             INT NOT NULL DEFAULT 50;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS legacy_points       INT NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS is_silenced         BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS silenced_until_turn INT;
 """
 
 
